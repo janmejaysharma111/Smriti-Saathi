@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Smriti Saathi",
+    "slug": "smriti-saathi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#F6F8F1"
+    },
+    "android": {
+      "package": "com.smritisaathi.app"
+    }
+  }
+}
