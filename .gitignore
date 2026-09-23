@@ -3,3 +3,5 @@ node_modules/
 .expo-check/
 .npm-cache/
 npm-debug.log*
+.env
+.env.local
