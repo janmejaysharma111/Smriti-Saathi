@@ -9,7 +9,13 @@
       "backgroundColor": "#F6F8F1"
     },
     "android": {
-      "package": "com.smritisaathi.app"
-    }
+      "package": "com.smritisaathi.app",
+      "permissions": [
+        "SCHEDULE_EXACT_ALARM"
+      ]
+    },
+    "plugins": [
+      "expo-notifications"
+    ]
   }
 }
