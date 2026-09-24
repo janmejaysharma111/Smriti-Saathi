@@ -32,7 +32,7 @@ const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const QUIZ_PROMPT = `Create a patient-facing memory quiz from the caregiver-provided context. Generate as many distinct, answerable questions as the facts support, from 1 to 5. Do not force extra questions, repeat a fact, or invent information. For each question provide exactly 4 options: one correct and 3 plausible incorrect options from the same category. Make questions varied and clear for a patient with memory difficulties. Vary correct option positions. Return only valid JSON, no markdown.
 
 Point of view:
-- The caregiver may describe the patient in third person. When a fact is about the patient, address the patient directly as "you/your". For example, if context says "Asha lives in Guwahati", ask "Where do you live?" Do not ask "Where does Asha live?"
+- The caregiver may describe the patient in third person. When a fact is about the patient, address the patient directly as "you/your". For example, if context says "The patient lives in Guwahati", ask "Where do you live?" Do not ask "Where does the patient live?"
 - Unless the context clearly identifies someone else, treat an unnamed "she/he" and facts about the patient as referring to the patient. For example, "She has sisters Lata, Mina, and Sheela, and she is older than all of them" can produce "How many sisters do you have?", "What are your sisters' names?", and "Are you older than your sisters?" Preserve third-person names for other people.
 
 Context:
@@ -47,16 +47,16 @@ function shuffleItems(items) {
 const starterMemories = [];
 
 const roles = {
-  patient: { label: 'Patient', icon: '🌼', welcome: 'Good morning, Asha', subtitle: 'Let us take today one gentle step at a time.' },
-  caregiver: { label: 'Caregiver', icon: '🤝', welcome: 'Caregiver home', subtitle: 'A quick view of your loved one’s day.' },
-  observer: { label: 'Medical Observer', icon: '🩺', welcome: 'Observer dashboard', subtitle: 'Review trends and support plans.' },
+  patient: { label: 'Patient', icon: '🌼', subtitle: 'Let us take today one gentle step at a time.' },
+  caregiver: { label: 'Caregiver', icon: '🤝', subtitle: 'A quick view of your loved one’s day.' },
+  observer: { label: 'Medical Observer', icon: '🩺', subtitle: 'Review trends and support plans.' },
 };
 
 function Back({ text, onPress }) {
   return <Pressable accessibilityRole="button" onPress={onPress} style={styles.back}><Text style={styles.backText}>‹  {text}</Text></Pressable>;
 }
 
-function Login({ onSelect }) {
+function RolePicker({ onSelect }) {
   const descriptions = { patient: 'Play, remember, and stay connected', caregiver: 'Support and keep up with your loved one', observer: 'Monitor care and review progress' };
   return <SafeAreaView style={styles.safe}><StatusBar style="dark" /><View style={styles.login}>
     <View style={styles.brandMark}><Text style={styles.star}>✦</Text></View>
@@ -68,18 +68,59 @@ function Login({ onSelect }) {
   </View></SafeAreaView>;
 }
 
-function Landing({ roleKey, memoryCount, reminderCount, responseCount, onChangeRole, onBuilder, onQuiz, onReminders }) {
+function Login({ roleKey, onBack, onLogin }) {
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
+  const role = roles[roleKey];
+  const submit = () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setMessage('Enter your name to continue.');
+      return;
+    }
+    onLogin(trimmedName);
+  };
+
+  return <SafeAreaView style={styles.safe}><StatusBar style="dark" /><View style={styles.login}>
+    <Back text="Choose a different role" onPress={onBack} />
+    <View style={styles.brandMark}><Text style={styles.star}>{role.icon}</Text></View>
+    <Text style={styles.brand}>{role.label} sign in</Text>
+    <Text style={styles.tagline}>Enter your name to continue.</Text>
+    <View style={styles.builder}>
+      <Text style={styles.inputLabel}>Your name</Text>
+      <TextInput
+        accessibilityLabel="Your name"
+        autoCapitalize="words"
+        autoComplete="name"
+        onChangeText={(value) => { setName(value); setMessage(''); }}
+        onSubmitEditing={submit}
+        placeholder="Enter your name"
+        placeholderTextColor="#93A096"
+        returnKeyType="go"
+        style={styles.input}
+        value={name}
+      />
+      {!!message && <Text accessibilityRole="alert" style={styles.message}>{message}</Text>}
+      <Pressable accessibilityRole="button" onPress={submit} style={styles.primary}>
+        <Text style={styles.primaryText}>Continue</Text>
+      </Pressable>
+    </View>
+    <Text style={styles.footer}>Designed with care for every family.</Text>
+  </View></SafeAreaView>;
+}
+
+function Landing({ roleKey, displayName, memoryCount, reminderCount, responseCount, onChangeRole, onBuilder, onQuiz, onReminders }) {
   const role = roles[roleKey];
   const cards = roleKey === 'caregiver'
-    ? [['Create memory quiz', `${memoryCount} memories ready for the patient quiz`, 'Add memories', onBuilder], ['Today’s check-in', 'Asha completed 2 of 3 reminders', 'View details'], ['Send encouragement', 'Share a voice or video message', 'Send message']]
+    ? [['Create memory quiz', `${memoryCount} memories ready for the patient quiz`, 'Add memories', onBuilder], ['Today’s check-in', 'Your patient completed 2 of 3 reminders', 'View details'], ['Send encouragement', 'Share a voice or video message', 'Send message']]
     : roleKey === 'patient'
-      ? [['Today’s memory game', `${memoryCount} personal questions ready`, 'Play now', onQuiz], ['Medicine reminder', 'After breakfast · 9:00 AM', 'Mark taken'], ['A message from Riya', '“I will call you this evening.”', 'Listen']]
+      ? [['Today’s memory game', `${memoryCount} personal questions ready`, 'Play now', onQuiz], ['Medicine reminder', 'After breakfast · 9:00 AM', 'Mark taken'], ['A message from your family', '“I will call you this evening.”', 'Listen']]
       : [['Patients needing review', '3 reminders were missed this week', 'Open list'], ['Engagement trend', 'Memory-game activity is steady', 'View trend'], ['Care plan notes', '2 caregiver updates received today', 'Review notes']];
   cards.push(['Reminders', reminderCount + ' scheduled reminders', 'Open reminders', onReminders]);
   if (roleKey === 'caregiver' || roleKey === 'observer') cards.push(['Reminder responses', responseCount + ' responses recorded', 'View response table', onReminders]);
   return <SafeAreaView style={styles.safe}><StatusBar style="dark" /><ScrollView contentContainerStyle={styles.page}>
     <View style={styles.topbar}><Back text="Change role" onPress={onChangeRole}/><Text style={styles.topIcon}>{role.icon}</Text></View>
-    <Text style={styles.eyebrow}>{role.label.toUpperCase()}</Text><Text style={styles.pageTitle}>{role.welcome}</Text><Text style={styles.subtitle}>{role.subtitle}</Text>
+    <Text style={styles.eyebrow}>{role.label.toUpperCase()}</Text><Text style={styles.pageTitle}>{roleKey === 'patient' ? `Good morning, ${displayName}` : `Welcome, ${displayName}`}</Text><Text style={styles.subtitle}>{role.subtitle}</Text>
     <View style={styles.status}><Text style={styles.statusDot}>●</Text><Text style={styles.statusText}>Everything is up to date</Text></View>
     <Text style={styles.sectionTitle}>Your day at a glance</Text>{cards.map(([title, description, action, handler]) => <View style={styles.card} key={title}>
       <Text style={styles.cardTitle}>{title}</Text><Text style={styles.cardDescription}>{description}</Text><Pressable accessibilityRole="button" onPress={handler} style={styles.action}><Text style={styles.actionText}>{action}</Text></Pressable>
@@ -216,7 +257,7 @@ function Builder({ memories, onAdd, onDelete, onBack }) {
     <Back text="Caregiver home" onPress={onBack}/><Text style={styles.eyebrow}>MEMORY QUIZ BUILDER</Text><Text style={styles.pageTitle}>Add quiz context</Text>
     <Text style={styles.subtitle}>Enter a short passage or several related facts. AI will create as many distinct questions as the facts support.</Text>
     <View style={styles.builder}><Text style={styles.inputLabel}>Context or passage</Text>
-      <TextInput value={sentence} onChangeText={setSentence} placeholder="For example: Riya is Asha's daughter. She lives in Shillong and enjoys gardening." placeholderTextColor="#93A096" multiline style={[styles.input, styles.promptInput]}/>
+      <TextInput value={sentence} onChangeText={setSentence} placeholder="For example: Riya is the patient's daughter. She lives in Shillong and enjoys gardening." placeholderTextColor="#93A096" multiline style={[styles.input, styles.promptInput]}/>
       <Text style={styles.hint}>Add related facts; the quiz will only use details that support a clear question.</Text>
       <Pressable accessibilityRole="button" disabled={loading} onPress={save} style={[styles.primary, loading && styles.disabled]}>{loading ? <ActivityIndicator color="#FFF"/> : <Text style={styles.primaryText}>Generate patient quiz</Text>}</Pressable>{!!message && <Text style={styles.message}>{message}</Text>}
     </View><Text style={styles.sectionTitle}>Quiz questions ({memories.length})</Text>
@@ -248,6 +289,7 @@ function Quiz({ memories, onBack }) {
 
 export default function App() {
   const [role, setRole] = useState(null);
+  const [displayName, setDisplayName] = useState('');
   const [screen, setScreen] = useState('home');
   const [memories, setMemories] = useState(starterMemories);
   const [reminders, setReminders] = useState([]);
@@ -326,11 +368,12 @@ export default function App() {
   };
 
   let content;
-  if (!role) content = <Login onSelect={setRole} />;
+  if (!role) content = <RolePicker onSelect={(selectedRole) => { setRole(selectedRole); setScreen('login'); }} />;
+  else if (screen === 'login') content = <Login roleKey={role} onBack={() => { setRole(null); setScreen('home'); }} onLogin={(name) => { setDisplayName(name); setScreen('home'); }} />;
   else if (screen === 'builder') content = <Builder memories={memories} onAdd={(newMemories) => setMemories((all) => [...all, ...newMemories])} onDelete={(id) => setMemories((all) => all.filter((memory) => memory.id !== id))} onBack={() => setScreen('home')} />;
   else if (screen === 'quiz') content = <Quiz memories={memories} onBack={() => setScreen('home')} />;
   else if (screen === 'reminders') content = <ReminderCenter roleKey={role} reminders={reminders} responses={responses} onAdd={addReminder} onDelete={deleteReminder} onBack={() => setScreen('home')} />;
-  else content = <Landing roleKey={role} memoryCount={memories.length} reminderCount={reminders.length} responseCount={responses.length} onChangeRole={() => { setRole(null); setScreen('home'); }} onBuilder={() => setScreen('builder')} onQuiz={() => setScreen('quiz')} onReminders={() => setScreen('reminders')} />;
+  else content = <Landing roleKey={role} displayName={displayName} memoryCount={memories.length} reminderCount={reminders.length} responseCount={responses.length} onChangeRole={() => { setRole(null); setScreen('home'); }} onBuilder={() => setScreen('builder')} onQuiz={() => setScreen('quiz')} onReminders={() => setScreen('reminders')} />;
 
   return <>{content}<ReminderPopup reminder={pendingReminder} onRespond={(completed) => recordResponse(pendingReminder, completed, roles[role || 'patient'].label)} /></>;
 }

@@ -66,11 +66,16 @@ the actions will be stored in local storage and queued to backend so that update
 
 ## Run the mobile prototype
 
-This repository currently contains an Expo / React Native prototype of the role-selection flow and rough landing pages.
+The Expo / React Native app lives in `frontend/`.
 
-1. Install dependencies with `npm install`.
-2. Start the development server with `npm start`.
-3. Scan the QR code with Expo Go on your Android or iOS device. Keep the computer and phone on the same Wi-Fi network.
+1. Change to `frontend/` (`cd frontend`).
+2. Install dependencies with `npm install`.
+3. Start the development server with `npm start`.
+4. Scan the QR code with Expo Go on your Android or iOS device. Keep the computer and phone on the same Wi-Fi network.
+
+## Run the backend
+
+The FastAPI backend setup and API workflow are documented in [backend/README.md](backend/README.md).
 
 Choose Patient, Caregiver, or Medical Observer on the opening screen to see the matching landing page. The **Change role** control returns to the opening screen.
 

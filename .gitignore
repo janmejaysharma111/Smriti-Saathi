@@ -1,7 +1,14 @@
 node_modules/
+frontend/node_modules/
 .expo/
+frontend/.expo/
 .expo-check/
 .npm-cache/
 npm-debug.log*
 .env
-.env.local
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+*.db
