@@ -80,6 +80,18 @@ class Score(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
 
+class MemoryQuestion(Base):
+    __tablename__ = "memory_questions"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    patient_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    prompt: Mapped[str] = mapped_column(String(2000))
+    options: Mapped[list[str]] = mapped_column(JSON)
+    answer: Mapped[str] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(engine)
@@ -92,11 +104,11 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+configured_cors_origins = os.getenv("CORS_ORIGINS")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in os.getenv(
-        "CORS_ORIGINS", "http://localhost:8081,http://localhost:19006"
-    ).split(",") if origin.strip()],
+    allow_origins=[origin.strip() for origin in configured_cors_origins.split(",") if origin.strip()] if configured_cors_origins else [],
+    allow_origin_regex=None if configured_cors_origins else r"^http://(?:(?:localhost|127\.0\.0\.1)|(?:10(?:\.\d{1,3}){3})|(?:192\.168(?:\.\d{1,3}){2})|(?:172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}))(?::\d+)?$",
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type"],
@@ -159,6 +171,22 @@ class ScoreInput(BaseModel):
     value: int = Field(ge=0, le=1_000_000)
     details: dict[str, Any] = Field(default_factory=dict)
     recorded_at: datetime | None = None
+
+
+class MemoryInput(BaseModel):
+    prompt: str = Field(min_length=1, max_length=2000)
+    options: list[str] = Field(min_length=4, max_length=4)
+    answer: str = Field(min_length=1, max_length=500)
+
+
+class MemoryView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    patient_id: UUID
+    prompt: str
+    options: list[str]
+    answer: str
+    created_at: datetime
 
 
 class ScoreView(BaseModel):
@@ -296,6 +324,52 @@ def reject_relationship(link_id: UUID, user: CurrentUser, db: Db):
     db.commit()
     db.refresh(link)
     return link
+
+
+@app.get("/patients/{patient_id}/memories", response_model=list[MemoryView])
+def list_memory_questions(patient_id: UUID, user: CurrentUser, db: Db):
+    if not can_view_patient(db, user, patient_id):
+        raise HTTPException(status_code=403, detail="You do not have access to this patient's memories")
+    return db.scalars(
+        select(MemoryQuestion).where(MemoryQuestion.patient_id == patient_id).order_by(MemoryQuestion.created_at.desc())
+    ).all()
+
+
+@app.post("/patients/{patient_id}/memories", response_model=MemoryView, status_code=201)
+def create_memory_question(patient_id: UUID, body: MemoryInput, user: CurrentUser, db: Db):
+    require_role(user, Role.caregiver, Role.observer)
+    if not can_view_patient(db, user, patient_id):
+        raise HTTPException(status_code=403, detail="An accepted care-team link is required to add memories")
+    options = [option.strip() for option in body.options]
+    answer = body.answer.strip()
+    prompt = body.prompt.strip()
+    if not prompt or any(not option for option in options) or len(set(options)) != 4 or answer not in options:
+        raise HTTPException(status_code=422, detail="Provide a prompt and four distinct options, including the correct answer")
+    memory = MemoryQuestion(
+        patient_id=patient_id,
+        created_by=user.id,
+        prompt=prompt,
+        options=options,
+        answer=answer,
+    )
+    db.add(memory)
+    db.commit()
+    db.refresh(memory)
+    return memory
+
+
+@app.delete("/patients/{patient_id}/memories/{memory_id}", status_code=204)
+def delete_memory_question(patient_id: UUID, memory_id: UUID, user: CurrentUser, db: Db):
+    require_role(user, Role.caregiver, Role.observer)
+    if not can_view_patient(db, user, patient_id):
+        raise HTTPException(status_code=403, detail="An accepted care-team link is required to remove memories")
+    memory = db.get(MemoryQuestion, memory_id)
+    if memory is None or memory.patient_id != patient_id:
+        raise HTTPException(status_code=404, detail="Memory question not found")
+    if user.role != Role.observer and memory.created_by != user.id:
+        raise HTTPException(status_code=403, detail="Only the person who added this question can remove it")
+    db.delete(memory)
+    db.commit()
 
 
 @app.get("/relationships", response_model=list[LinkedPersonView])

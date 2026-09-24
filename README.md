@@ -75,7 +75,7 @@ The Expo / React Native app lives in `frontend/`.
 
 ## Run the backend
 
-The FastAPI backend setup and API workflow are documented in [backend/README.md](backend/README.md).
+The FastAPI backend setup and API workflow are documented in [backend/README.md](backend/README.md). Start the API on port 8000 before using frontend sign-in. During Expo development the app discovers the development computer's LAN address automatically; keep the phones and computer on the same Wi-Fi network.
 
 Choose Patient, Caregiver, or Medical Observer on the opening screen to see the matching landing page. The **Change role** control returns to the opening screen.
 

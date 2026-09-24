@@ -14,7 +14,7 @@ python -m pip install -e .
 uvicorn app.main:app --reload --host 0.0.0.0
 ```
 
-Open http://127.0.0.1:8000/docs for the interactive API docs on the development computer. For Expo Go on a separate phone, point the app at the computer's LAN IP (for example `http://192.168.1.20:8000`) and keep both devices on the same network. SQLite data is stored in `smriti_saathi.db` by default. Set `DATABASE_URL` to use another SQLAlchemy-supported database, `JWT_SECRET` to a long, random secret, and `CORS_ORIGINS` to a comma-separated allowlist of web client origins before deployment. The built-in secret and CORS origins are for local development only. Native mobile clients do not use browser CORS checks.
+Open http://127.0.0.1:8000/docs for the interactive API docs on the development computer. The Expo frontend reads the host used by the development server and calls port 8000 on that same computer, so leave its API address unset for local development. On a physical phone, open Expo Go and the API computer on the same Wi-Fi network. Allow inbound TCP port 8000 through the computer firewall if prompted. SQLite data is stored in `smriti_saathi.db` by default. Set `DATABASE_URL` to use another SQLAlchemy-supported database and `JWT_SECRET` to a long, random secret before deployment. For a deployed app, set `expo.extra.apiBaseUrl` in `frontend/app.json` to the HTTPS API URL. For a deployed web client, set `CORS_ORIGINS` to a comma-separated exact allowlist; without it, the API allows localhost and private-LAN HTTP origins for development. Native mobile clients do not use browser CORS checks.
 
 ## Main flow
 
@@ -22,7 +22,10 @@ Open http://127.0.0.1:8000/docs for the interactive API docs on the development 
 2. Sign in at `POST /auth/token`. Use the returned bearer token for authenticated requests.
 3. A caregiver or observer requests access with `POST /relationships`, supplying the patient's email.
 4. The patient reviews `GET /relationships/requests` and accepts or rejects each request. Only accepted relationships grant access.
-5. Patients submit their own activity results to `POST /patients/{patient_id}/scores`. Their accepted caregivers and observers can read those results with `GET /patients/{patient_id}/scores`.
+5. A caregiver or observer creates patient quiz questions with `POST /patients/{patient_id}/memories`; the patient and accepted team members can read them with `GET /patients/{patient_id}/memories`.
+6. Patients submit their own activity results to `POST /patients/{patient_id}/scores`. Their accepted caregivers and observers can read those results with `GET /patients/{patient_id}/scores`.
+
+The frontend sign-in screen creates or authenticates accounts with these endpoints. The **Care team** screen lets caregivers and observers request a patient connection, lets patients approve or decline requests, and shows scores only after a connection is active. Caregivers create quiz questions for an accepted patient and the patient's phone loads those questions from the API. Completing the family memory quiz or pattern recognition game uploads its score for the signed-in patient. Reminders and reminder responses remain on the device for now.
 
 Each score supports an activity name, integer score, timestamp, and JSON details. List results are paginated and can be filtered by activity. `GET /relationships` lists a user's own care-team links.
 
